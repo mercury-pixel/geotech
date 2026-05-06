@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/mercury-pixel/geotech.git
     targetRevision: main
-    path: k8s/app
+    path: deploy/k8s/app
 
   destination:
     server: https://kubernetes.default.svc
