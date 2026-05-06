@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte Cadastrale</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+     <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/> -->
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: rgb(249, 242, 249);
+        }
+        /* header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0px 20px;
+            background-color: rgb(45, 192, 174);
+            color: #000;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        } */
+         header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 30px;
+            height: 40px;
+            background-color: rgb(45, 192, 174);
+            /* background: linear-gradient(135deg, rgb(45, 192, 174), rgb(30, 150, 200)); */
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            backdrop-filter: blur(10px);
+        }
+        header button {
+            padding: 6px 12px;
+            background-color: #a03758;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px 0;
+            background-color: white;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            margin-top: 10px;
+        }
+        #searchBar {
+            position: absolute;
+            top: 70px;
+            left: 50px;
+            z-index: 1000;
+            padding: 8px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        #map {
+            height: 700px;
+            width: 100%;
+        }
+        .legende {
+            background: white;
+            padding: 8px;
+            line-height: 18px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            border-radius: 5px;
+        }
+        .legende i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.6;
+        }
+
+        #filter {
+            position: absolute;
+            top: 150px;
+            left: 50px;
+            z-index: 1000;
+            padding: 12px 20px;
+            background: white;
+            /* width: 200px; */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        #filter label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        #filter select {
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h4 style="margin: 0;">Bienvenue sur notre portail cartographique</h4>
+        </div>
+        <div>
+            <a href="/" style="text-decoration: none; color: #007bff; font-weight: bold;">Accueil</a>
+        </div>
+        <div>
+            <button onclick="location.href='/admin'" type="button">Se connecter</button>
+        </div>
+    </header>
+
+    <div id="searchBar">
+        <input type="text" id="searchInput" placeholder="Rechercher par numéro de parcelle..." style="width: 250px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+        <button onclick="searchParcelle()" id="searchButton" style="padding: 6px 12px; background-color: #007bff; border: none; border-radius: 4px; color: white; cursor: pointer;">Rechercher</button>
+    </div>
+
+    <div id="filter">
+        <label for="">Usage : </label>
+        <select id="usageFilter">
+            <option value="all">Tous</option>
+            <option value="Habitation">Habitation</option>
+            <option value="Pépinières d'hévéa">Pépinières d'hévéa</option>
+            <option value="Commerce">Commerce</option>
+            <option value="Industrie">Industrie</option>
+        </select>
+    </div>
+    <div id="map"></div>
+    <footer>
+        &copy; 2024 Cartographie Cadastrale. Tous droits réservés.
+    </footer>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+    <script>
+        let geojson;
+        var map = L.map('map').setView([6.8170057,-5.2831912], 14); // Centré sur Paris
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+        }).addTo(map);
+
+        // Ajouter une fonction pour styliser les parcelles
+        // function getColor(usage) {
+        //     switch (usage) {
+        //         case 'Habitation': return 'blue';
+        //         case "Pépinières d'hévéa": return 'green';
+        //         case 'Commerce': return 'orange';
+        //         case 'Industrie': return 'red';
+        //         default: return 'gray';
+        //     }
+        // }
+
+        // Couche par usage
+        var layersByUsage = {
+            'Habitation': L.layerGroup(),
+            "Pépinières d'hévéa": L.layerGroup(),
+            'Commerce': L.layerGroup(),
+            'Industrie': L.layerGroup()
+        };
+
+        let allLayers = []
+
+
+        function styleParcelle(feature) {
+            switch(feature.properties.usage){
+                case ('Habitation'):
+                    return {color: 'blue', weight: 2, fillColor: 'blue', fillOpacity: 0.5};
+                case ("Pépinières d'hévéa"):
+                    return {color: 'green', weight: 2, fillColor: 'green', fillOpacity: 0.5};
+                case ('Commerce'):
+                    return {color: 'orange', weight: 2, fillColor: 'orange', fillOpacity: 0.5}
+                case ('Industrie'):
+                    return {color: 'red', weight: 2, fillColor: 'red', fillOpacity: 0.5}
+                default:
+                    return {color: 'gray', weight: 2, fillColor: 'gray', fillOpacity: 0.5}
+            }
+        }
+
+        function highlightFeature(e) {
+            const layer = e.target;
+
+            layer.setStyle({
+                weight: 3,
+                color: '#666',
+                fillOpacity: 0.7
+            });
+
+            layer.bringToFront();
+        }
+
+        function resetHighlight(e) {
+            geojson.resetStyle(e.target);
+        }
+
+        function searchParcelle() {
+            const searchTerm = document.getElementById('searchInput').value;
+            if (!searchTerm) {alert('veuillez saisir le nom et le prenoms du proprietaire de la parcelle'); return};
+
+            // const foundFeature = geojson.getLayers().find(layer => {
+            //     return layer.feature.properties.num_parcelle.toLowerCase() === searchTerm.toLowerCase() || layer.feature.properties.proprietaire.toLowerCase() === searchTerm.toLowerCase();
+            // });
+            let found= false;
+            allLayers.forEach(items => {
+                if (items.layer.feature.properties.num_parcelle.toLowerCase() === searchTerm.toLowerCase() || items.layer.feature.properties.proprietaire.toLowerCase() === searchTerm.toLowerCase()) {
+                    map.fitBounds(items.layer.getBounds(), { padding: [20, 20] }, { maxZoom: 19 });
+                    items.layer.openPopup();
+                    found = true;
+                }
+            });
+
+            if(!found){
+                alert('Parcelle non trouvée');
+            }
+
+            // if (foundFeature) {
+            //     map.fitBounds(foundFeature.getBounds(), { padding: [20, 20] }, { maxZoom: 19 });
+            //     foundFeature.openPopup();
+            // } else {
+            //     alert('Parcelle non trouvée');
+            // }
+        }
+
+        function onEachParcelle(feature, layer) {
+            if (feature.properties) {
+                const p = feature.properties;
+                layer.bindPopup(`
+                    <strong>Parcelle :</strong> ${p.num_parcelle}<br>
+                    <strong>Superficie :</strong> ${p.superficie} ha<br>
+                    <strong>Usage :</strong> ${p.usage}<br>
+                    <strong>Propriétaire :</strong> ${p.proprietaire}<br>
+                    <strong>Contact :</strong> ${p.contact}
+                `);
+
+                allLayers.push({layer: layer, usage: p.usage});
+                if (layersByUsage[p.usage]) {
+                    layersByUsage[p.usage].addLayer(layer);
+                }
+
+
+                // ✅ événements hover
+                layer.on({
+                    mouseover: highlightFeature,
+                    mouseout: resetHighlight
+                });
+            }
+        }
+        // Ajouter une fonction pour afficher les informations de chaque parcelle dans une popup
+        // function onEachParcelle(feature, layer) {
+        //     if (feature.properties) {
+        //         layer.bindPopup(`
+        //             <strong>Parcelle Number :</strong> ${feature.properties.num_parcelle}<br>
+        //             <strong>superficie :</strong> ${feature.properties.superficie} ha<br>
+        //             <strong>Usage:</strong> ${feature.properties.usage}<br>
+        //             <strong>Propriétaire:</strong> ${feature.properties.proprietaire}<br>
+        //             <strong>Contact:</strong> ${feature.properties.contact}
+        //         `);
+        //     }
+        // }
+
+        //  charger les données GeoJSON depuis l'API Django
+        fetch('/api/parcelles/')
+            .then(response => response.json())
+            .then(data => {
+                console.log('GeoJSON data:', data); // Affiche les données GeoJSON dans la console pour vérification
+                geojson = L.geoJSON(data, {
+                    style: styleParcelle,
+                    onEachFeature: onEachParcelle
+                }).addTo(map);
+
+               if (data.features && data.features.length > 0) {
+                   const limites = geojson.getBounds();
+                   if (limites.isValid()) {
+                       map.fitBounds(limites, { padding: [20, 20] }, { maxZoom: 19 });
+                   }
+                }
+            })
+            .catch(error => console.error('Error fetching GeoJSON:', error));
+        document.getElementById('usageFilter').addEventListener('change', function() {
+            const selectedUsage = this.value;
+
+            allLayers.forEach(({layer, usage}) => {
+                map.removeLayer(layer); // Retirer la couche avant de décider de la réajouter ou pas
+                if (selectedUsage === 'all' || usage === selectedUsage) {
+                    layer.addTo(map);
+                } else {
+                    map.removeLayer(layer);
+                }
+            }); 
+        });
+
+        L.control.layers(null, layersByUsage, { 
+            collapsed: false , 
+            position: 'topright',
+            autoZIndex: true
+        }).addTo(map);
+        let legend = L.control({position: 'bottomright', autoZIndex: true, collapsed: false, marginBottom: '50px'});
+        legend.onAdd = function (map) {
+            let div = L.DomUtil.create('div', 'legende');
+            div.innerHTML += '<i style="background: blue"></i> Habitation<br>';
+            div.innerHTML += '<i style="background: green"></i> Pépinières d\'hévéa<br>';
+            div.innerHTML += '<i style="background: orange"></i> Commerce<br>';
+            div.innerHTML += '<i style="background: red"></i> Industrie<br>';
+            return div;
+        };
+        legend.addTo(map);
+    </script>
+</body>
+</html>

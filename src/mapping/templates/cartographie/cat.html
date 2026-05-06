@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GéoFoncier — Parcelles</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f4f2ee;
+      --surface: #ffffff;
+      --surface-2: #f8f7f4;
+      --border: rgba(0,0,0,0.08);
+      --border-strong: rgba(0,0,0,0.14);
+      --text: #1a1a18;
+      --text-muted: #7a7970;
+      --text-faint: #b0aea6;
+      --accent: #2d6a4f;
+      --accent-light: #e8f5ef;
+      --accent-text: #1b4332;
+      --blue: #1e6091;
+      --blue-light: #e8f4fd;
+      --amber: #b45309;
+      --amber-light: #fef3c7;
+      --red: #9b2335;
+      --red-light: #fdecea;
+      --green: #2d6a4f;
+      --green-light: #e8f5ef;
+      --radius: 10px;
+      --radius-lg: 14px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      --shadow-lg: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── TOPBAR ── */
+    #topbar {
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    #topbar .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #topbar .logo-icon {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    #topbar .logo-icon svg { width: 16px; height: 16px; }
+
+    #topbar .breadcrumb {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--text-muted);
+      margin-left: 8px;
+      padding-left: 16px;
+      border-left: 1px solid var(--border);
+    }
+
+    #topbar .breadcrumb span { color: var(--text); font-weight: 500; }
+
+    #topbar-right {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border-strong);
+      color: var(--text);
+    }
+    .btn-ghost:hover { background: var(--surface-2); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--accent-text); }
+
+    .avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--accent-light);
+      color: var(--accent-text);
+      font-size: 12px;
+      font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif;
+    }
+
+    /* ── MAIN LAYOUT ── */
+    #main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: 300px;
+      min-width: 300px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #sidebar-head {
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #sidebar-head h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    #sidebar-head p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    #search-wrap {
+      position: relative;
+      margin-top: 12px;
+    }
+
+    #search-wrap svg {
+      position: absolute;
+      left: 10px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-faint);
+      pointer-events: none;
+    }
+
+    #search {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      background: var(--surface-2);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #search:focus { border-color: var(--accent); background: white; }
+    #search::placeholder { color: var(--text-faint); }
+
+    /* FILTERS */
+    #filters {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #filters label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+    .chip {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.12s;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border-color: var(--border);
+    }
+    .chip:hover { border-color: var(--border-strong); color: var(--text); }
+    .chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    /* LIST */
+    #parcelle-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    #parcelle-list::-webkit-scrollbar { width: 4px; }
+    #parcelle-list::-webkit-scrollbar-track { background: transparent; }
+    #parcelle-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+    .p-item {
+      padding: 11px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      border: 1px solid transparent;
+      margin-bottom: 2px;
+      transition: all 0.12s;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .p-item:hover { background: var(--surface-2); border-color: var(--border); }
+    .p-item.active { background: var(--accent-light); border-color: rgba(45,106,79,0.2); }
+
+    .p-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    .p-body { flex: 1; min-width: 0; }
+
+    .p-num {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+    }
+    .p-item.active .p-num { color: var(--accent-text); }
+
+    .p-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .p-badge {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 10px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    /* SIDEBAR FOOTER */
+    #sidebar-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      gap: 8px;
+    }
+
+    .stat-mini {
+      flex: 1;
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+    }
+    .stat-mini-val {
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Syne', sans-serif;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .stat-mini-lbl {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* ── MAP AREA ── */
+    #map-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* TOOLBAR */
+    #map-toolbar {
+      height: 46px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+      flex-shrink: 0;
+      z-index: 50;
+    }
+
+    .layer-btn {
+      padding: 5px 12px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      color: var(--text-muted);
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.12s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .layer-btn:hover { background: var(--surface-2); color: var(--text); }
+    .layer-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    #toolbar-right {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    #coords {
+      font-size: 11px;
+      color: var(--text-faint);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* MAP */
+    #map {
+      flex: 1;
+    }
+
+    /* LEAFLET OVERRIDES */
+    .leaflet-control-zoom {
+      border: none !important;
+      box-shadow: var(--shadow) !important;
+    }
+    .leaflet-control-zoom a {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      font-family: 'DM Sans', sans-serif !important;
+      font-size: 16px !important;
+      line-height: 28px !important;
+      width: 30px !important;
+      height: 30px !important;
+    }
+    .leaflet-control-zoom a:hover { background: var(--surface-2) !important; }
+    .leaflet-control-zoom-in { border-radius: var(--radius) var(--radius) 0 0 !important; }
+    .leaflet-control-zoom-out { border-radius: 0 0 var(--radius) var(--radius) !important; }
+
+    /* POPUP */
+    .leaflet-popup-content-wrapper {
+      border-radius: var(--radius-lg) !important;
+      box-shadow: var(--shadow-lg) !important;
+      border: 1px solid var(--border) !important;
+      padding: 0 !important;
+    }
+    .leaflet-popup-content {
+      margin: 0 !important;
+      width: auto !important;
+    }
+    .leaflet-popup-tip-container { display: none; }
+
+    .popup-inner { padding: 16px 18px; min-width: 220px; }
+
+    .popup-header {
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .popup-icon {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .popup-header h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .popup-header small {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .popup-rows { display: flex; flex-direction: column; gap: 7px; }
+
+    .popup-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+    .popup-row-label { font-size: 11px; color: var(--text-muted); }
+    .popup-row-val { font-size: 12px; font-weight: 500; color: var(--text); }
+
+    /* LEGEND */
+    #legend {
+      position: absolute;
+      bottom: 18px; right: 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      z-index: 400;
+      box-shadow: var(--shadow);
+      min-width: 160px;
+    }
+
+    #legend h4 {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .leg-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .leg-item:last-child { margin-bottom: 0; }
+
+    .leg-swatch {
+      width: 14px; height: 14px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+
+    /* STATS BAR */
+    #statsbar {
+      height: 44px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 28px;
+      flex-shrink: 0;
+    }
+
+    .stat-bar-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px;
+    }
+    .stat-bar-val { font-weight: 600; color: var(--text); }
+    .stat-bar-lbl { color: var(--text-muted); }
+
+    .stat-bar-sep {
+      width: 1px; height: 16px;
+      background: var(--border);
+    }
+
+    #attribution {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+
+    /* COLOR MAP */
+    .color-hab { background: #1e6091; }
+    .color-pep { background: #2d6a4f; }
+    .color-com { background: #b45309; }
+    .color-ind { background: #9b2335; }
+    .color-aut { background: #6b6b6b; }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 1L2 4.5V11.5L8 15L14 11.5V4.5L8 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        <circle cx="8" cy="8" r="2" fill="white"/>
+      </svg>
+    </div>
+    GéoFoncier
+  </div>
+  <div class="breadcrumb">
+    Inventaire
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5L7.5 6L4.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    <span>Parcelles</span>
+  </div>
+  <div id="topbar-right">
+    <button class="btn btn-ghost">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Ajouter
+    </button>
+    <button class="btn btn-primary">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 10.5L5 7.5L8 10L12 4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Exporter
+    </button>
+    <div class="avatar">AK</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div id="sidebar-head">
+      <h1>Parcelles foncières</h1>
+      <p id="zone-label">Zone de Gagnoa — chargement…</p>
+      <div id="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+        <input id="search" type="text" placeholder="Rechercher une parcelle…"/>
+      </div>
+    </div>
+
+    <div id="filters">
+      <label>Filtrer par usage</label>
+      <div class="chips" id="chips">
+        <span class="chip active" data-filter="all">Tous</span>
+        <span class="chip" data-filter="Habitation">Habitation</span>
+        <span class="chip" data-filter="Pépinières d'hévéa">Hévéa</span>
+        <span class="chip" data-filter="Commerce">Commerce</span>
+        <span class="chip" data-filter="Industrie">Industrie</span>
+      </div>
+    </div>
+
+    <div id="parcelle-list"></div>
+
+    <div id="sidebar-footer">
+      <div class="stat-mini">
+        <div class="stat-mini-val" id="stat-count">—</div>
+        <div class="stat-mini-lbl">parcelles</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-val" id="stat-sup">—</div>
+        <div class="stat-mini-lbl">ha total</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-val" id="stat-types">—</div>
+        <div class="stat-mini-lbl">types d'usage</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP AREA -->
+  <div id="map-area">
+    <div id="map-toolbar">
+      <button class="layer-btn active" id="btn-osm">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="7" y="1" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="7" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+        Plan
+      </button>
+      <button class="layer-btn" id="btn-sat">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 1.5C6 1.5 8 4 8 6C8 8 6 10.5 6 10.5" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 6H10.5" stroke="currentColor" stroke-width="1.2"/></svg>
+        Satellite
+      </button>
+      <button class="layer-btn" id="btn-topo">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 9L4 5L6.5 7.5L8.5 3.5L11 9H1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        Topographie
+      </button>
+      <div id="toolbar-right">
+        <span id="coords">6.8170° N, 5.2832° O</span>
+      </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- LEGEND -->
+    <div id="legend">
+      <h4>Usage des parcelles</h4>
+      <div class="leg-item"><div class="leg-swatch color-hab"></div>Habitation</div>
+      <div class="leg-item"><div class="leg-swatch color-pep"></div>Pépinières d'hévéa</div>
+      <div class="leg-item"><div class="leg-swatch color-com"></div>Commerce</div>
+      <div class="leg-item"><div class="leg-swatch color-ind"></div>Industrie</div>
+      <div class="leg-item"><div class="leg-swatch color-aut"></div>Autre</div>
+    </div>
+
+    <!-- STATS BAR -->
+    <div id="statsbar">
+      <div class="stat-bar-item">
+        <span class="stat-bar-val" id="sb-count">—</span>
+        <span class="stat-bar-lbl">parcelles affichées</span>
+      </div>
+      <div class="stat-bar-sep"></div>
+      <div class="stat-bar-item">
+        <span class="stat-bar-val" id="sb-sup">—</span>
+        <span class="stat-bar-lbl">ha</span>
+      </div>
+      <div class="stat-bar-sep"></div>
+      <div class="stat-bar-item">
+        <span class="stat-bar-val" id="sb-sel">Aucune sélection</span>
+        <span class="stat-bar-lbl" id="sb-sel-lbl"></span>
+      </div>
+      <span id="attribution">© OpenStreetMap contributors</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // ── CONFIG COULEURS ──
+  const COLORS = {
+    'Habitation':       { fill: '#1e6091', cls: 'hab', icon: '🏠', badge: { bg: '#e8f4fd', color: '#1e6091' } },
+    "Pépinières d'hévéa": { fill: '#2d6a4f', cls: 'pep', icon: '🌿', badge: { bg: '#e8f5ef', color: '#1b4332' } },
+    'Commerce':         { fill: '#b45309', cls: 'com', icon: '🏪', badge: { bg: '#fef3c7', color: '#92400e' } },
+    'Industrie':        { fill: '#9b2335', cls: 'ind', icon: '🏭', badge: { bg: '#fdecea', color: '#9b2335' } },
+  };
+
+  function getColor(usage) {
+    return COLORS[usage]?.fill || '#6b6b6b';
+  }
+
+  // ── CARTE ──
+  const map = L.map('map', { zoomControl: true }).setView([6.8170057, -5.2831912], 14);
+
+  const tileLayers = {
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }),
+    sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
+    topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }),
+  };
+
+  tileLayers.osm.addTo(map);
+
+  // Boutons de couches
+  document.getElementById('btn-osm').onclick = () => switchLayer('osm');
+  document.getElementById('btn-sat').onclick = () => switchLayer('sat');
+  document.getElementById('btn-topo').onclick = () => switchLayer('topo');
+
+  function switchLayer(key) {
+    Object.values(tileLayers).forEach(l => map.removeLayer(l));
+    tileLayers[key].addTo(map);
+    document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + key).classList.add('active');
+  }
+
+  // Coordonnées en temps réel
+  map.on('mousemove', e => {
+    document.getElementById('coords').textContent =
+      `${e.latlng.lat.toFixed(4)}° N, ${Math.abs(e.latlng.lng).toFixed(4)}° O`;
+  });
+
+  // ── DONNÉES ──
+  let allData = null;
+  let geojsonLayer = null;
+  let selectedId = null;
+  let activeFilter = 'all';
+  let searchQuery = '';
+
+  // Remplace cette URL par ton endpoint Django réel
+  const API_URL = '/api/parcelles/';
+
+  // Données de démo si l'API n'est pas disponible
+  const DEMO_DATA = {
+    type: 'FeatureCollection',
+    features: [
+      { type:'Feature', properties:{ num_parcelle:'P-001', superficie:2.4, usage:'Habitation', proprietaire:'Jean Koné', contact:'07 00 11 01' }, geometry:{ type:'Polygon', coordinates:[[[  -5.295,6.820],[-5.285,6.820],[-5.285,6.814],[-5.295,6.814],[-5.295,6.820]]] } },
+      { type:'Feature', properties:{ num_parcelle:'P-002', superficie:5.1, usage:"Pépinières d'hévéa", proprietaire:'Mamadou Diabaté', contact:'07 00 11 02' }, geometry:{ type:'Polygon', coordinates:[[[-5.283,6.825],[-5.270,6.825],[-5.270,6.818],[-5.283,6.818],[-5.283,6.825]]] } },
+      { type:'Feature', properties:{ num_parcelle:'P-003', superficie:1.2, usage:'Commerce', proprietaire:'Adama Coulibaly', contact:'07 00 11 03' }, geometry:{ type:'Polygon', coordinates:[[[-5.268,6.820],[-5.260,6.820],[-5.260,6.815],[-5.268,6.815],[-5.268,6.820]]] } },
+      { type:'Feature', properties:{ num_parcelle:'P-004', superficie:3.8, usage:'Industrie', proprietaire:'SIMO SA', contact:'27 00 11 04' }, geometry:{ type:'Polygon', coordinates:[[[-5.257,6.822],[-5.245,6.822],[-5.245,6.815],[-5.257,6.815],[-5.257,6.822]]] } },
+      { type:'Feature', properties:{ num_parcelle:'P-005', superficie:1.9, usage:'Habitation', proprietaire:'Fatoumata Bamba', contact:'07 00 11 05' }, geometry:{ type:'Polygon', coordinates:[[[-5.292,6.810],[-5.282,6.810],[-5.282,6.804],[-5.292,6.804],[-5.292,6.810]]] } },
+      { type:'Feature', properties:{ num_parcelle:'P-006', superficie:7.3, usage:"Pépinières d'hévéa", proprietaire:'GIE Forêt Verte', contact:'07 00 11 06' }, geometry:{ type:'Polygon', coordinates:[[[-5.278,6.810],[-5.255,6.810],[-5.255,6.803],[-5.278,6.803],[-5.278,6.810]]] } },
+    ]
+  };
+
+  async function loadParcelles() {
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) throw new Error('API indisponible');
+      allData = await res.json();
+    } catch {
+      console.warn('API non disponible, utilisation des données de démo.');
+      allData = DEMO_DATA;
+    }
+    renderAll();
+  }
+
+  function styleParcelle(feature) {
+    const isSelected = feature.properties.num_parcelle === selectedId;
+    return {
+      fillColor: getColor(feature.properties.usage),
+      weight: isSelected ? 3 : 1.5,
+      opacity: 1,
+      color: isSelected ? '#fff' : 'rgba(255,255,255,0.8)',
+      fillOpacity: isSelected ? 0.85 : 0.6,
+      dashArray: null,
+    };
+  }
+
+  function onEachParcelle(feature, layer) {
+    const p = feature.properties;
+    const c = COLORS[p.usage] || { icon: '📍', badge: { bg: '#f0f0f0', color: '#666' } };
+
+    layer.on({
+      mouseover(e) {
+        if (p.num_parcelle !== selectedId) {
+          e.target.setStyle({ weight: 2.5, fillOpacity: 0.78 });
+          e.target.bringToFront();
+        }
+      },
+      mouseout(e) {
+        if (p.num_parcelle !== selectedId) {
+          geojsonLayer.resetStyle(e.target);
+        }
+      },
+      click() { selectParcelle(p.num_parcelle); }
+    });
+
+    layer.bindPopup(`
+      <div class="popup-inner">
+        <div class="popup-header">
+          <div class="popup-icon" style="background:${c.badge.bg}">${c.icon}</div>
+          <div>
+            <h3>${p.num_parcelle}</h3>
+            <small style="color:${c.badge.color};font-weight:500;">${p.usage}</small>
+          </div>
+        </div>
+        <div class="popup-rows">
+          <div class="popup-row">
+            <span class="popup-row-label">Superficie</span>
+            <span class="popup-row-val">${p.superficie} ha</span>
+          </div>
+          <div class="popup-row">
+            <span class="popup-row-label">Propriétaire</span>
+            <span class="popup-row-val">${p.proprietaire}</span>
+          </div>
+          <div class="popup-row">
+            <span class="popup-row-label">Contact</span>
+            <span class="popup-row-val">${p.contact}</span>
+          </div>
+        </div>
+      </div>
+    `, { maxWidth: 280, className: 'custom-popup' });
+  }
+
+  function getFilteredFeatures() {
+    return allData.features.filter(f => {
+      const p = f.properties;
+      const matchFilter = activeFilter === 'all' || p.usage === activeFilter;
+      const matchSearch = !searchQuery ||
+        p.num_parcelle.toLowerCase().includes(searchQuery) ||
+        p.proprietaire.toLowerCase().includes(searchQuery) ||
+        p.usage.toLowerCase().includes(searchQuery);
+      return matchFilter && matchSearch;
+    });
+  }
+
+  function renderAll() {
+    const features = getFilteredFeatures();
+    const filtered = { type: 'FeatureCollection', features };
+
+    // Update map layer
+    if (geojsonLayer) map.removeLayer(geojsonLayer);
+    geojsonLayer = L.geoJSON(filtered, {
+      style: styleParcelle,
+      onEachFeature: onEachParcelle
+    }).addTo(map);
+
+    if (features.length) map.fitBounds(geojsonLayer.getBounds(), { padding: [30, 30] });
+
+    // Update sidebar list
+    const list = document.getElementById('parcelle-list');
+    list.innerHTML = '';
+    features.forEach(f => {
+      const p = f.properties;
+      const c = COLORS[p.usage] || { cls: 'aut', badge: { bg: '#f0f0f0', color: '#666' } };
+      const item = document.createElement('div');
+      item.className = 'p-item' + (p.num_parcelle === selectedId ? ' active' : '');
+      item.dataset.id = p.num_parcelle;
+      item.innerHTML = `
+        <div class="p-dot color-${c.cls}"></div>
+        <div class="p-body">
+          <div class="p-num">${p.num_parcelle}</div>
+          <div class="p-sub">
+            <span>${p.superficie} ha</span>
+            <span>·</span>
+            <span>${p.proprietaire}</span>
+          </div>
+        </div>
+        <span class="p-badge" style="background:${c.badge.bg};color:${c.badge.color}">${p.usage.split(' ')[0]}</span>
+      `;
+      item.onclick = () => selectParcelle(p.num_parcelle);
+      list.appendChild(item);
+    });
+
+    // Update stats
+    const total = features.reduce((s, f) => s + f.properties.superficie, 0);
+    const types = new Set(features.map(f => f.properties.usage)).size;
+
+    document.getElementById('stat-count').textContent = features.length;
+    document.getElementById('stat-sup').textContent = total.toFixed(1);
+    document.getElementById('stat-types').textContent = types;
+    document.getElementById('sb-count').textContent = features.length;
+    document.getElementById('sb-sup').textContent = total.toFixed(1);
+    document.getElementById('zone-label').textContent =
+      `Zone de Gagnoa — ${allData.features.length} parcelles`;
+  }
+
+  function selectParcelle(id) {
+    selectedId = id;
+
+    // Update list UI
+    document.querySelectorAll('.p-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === id);
+    });
+
+    // Update map styles
+    if (geojsonLayer) {
+      geojsonLayer.eachLayer(layer => {
+        if (layer.feature) geojsonLayer.resetStyle(layer);
+      });
+    }
+
+    // Zoom to feature & open popup
+    if (geojsonLayer) {
+      geojsonLayer.eachLayer(layer => {
+        if (layer.feature?.properties?.num_parcelle === id) {
+          layer.setStyle({ weight: 3, fillOpacity: 0.85, color: '#fff' });
+          layer.bringToFront();
+          const bounds = layer.getBounds();
+          map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+          layer.openPopup(bounds.getCenter());
+        }
+      });
+    }
+
+    // Update stats bar
+    const feat = allData?.features.find(f => f.properties.num_parcelle === id);
+    if (feat) {
+      const p = feat.properties;
+      document.getElementById('sb-sel').textContent = p.num_parcelle;
+      document.getElementById('sb-sel-lbl').textContent = `· ${p.superficie} ha · ${p.usage}`;
+    }
+  }
+
+  // ── FILTRES ──
+  document.getElementById('chips').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    activeFilter = chip.dataset.filter;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedId = null;
+    renderAll();
+  });
+
+  // ── RECHERCHE ──
+  document.getElementById('search').addEventListener('input', e => {
+    searchQuery = e.target.value.toLowerCase().trim();
+    renderAll();
+  });
+
+  // ── INIT ──
+  loadParcelles();
+</script>
+</body>
+</html>

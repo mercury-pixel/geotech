@@ -1,0 +1,99 @@
+services:
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: geotech-postgres
+    hostname: postgres
+    restart: always
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: db_geotech
+    volumes:
+      - geotech_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin-db:
+    image: dpage/pgadmin4
+    container_name: geotech-pgadmin
+    hostname: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: adminpassword
+    ports:
+      - "5053:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build: .
+    container_name: geodjango
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8000
+      "
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  geotech_data:
+
+
+# services:
+#   postgres:
+#     image: postgis/postgis:15-3.4
+#     container_name: geotech-postgres
+#     hostname: postgres
+#     restart: always
+#     ports:
+#       - "5434:5432"
+#     environment:
+#       POSTGRES_USER: postgres
+#       POSTGRES_PASSWORD: postgres
+#       POSTGRES_DB: db_geotech
+#     volumes:
+#       - geotech_data:/var/lib/postgresql/data
+    
+#   pgadmin-db:
+#     image: dpage/pgadmin4
+#     container_name: geotech-pgadmin
+#     hostname: pgadmin
+#     restart: always
+#     environment:
+#       PGADMIN_DEFAULT_EMAIL: admin@example.com
+#       PGADMIN_DEFAULT_PASSWORD: adminpassword
+#     ports:
+#       - "5053:80"
+#     depends_on:
+#       - postgres
+
+#   web:
+#     build: .
+#     container_name: geodjango
+#     command: >
+#       sh -c "
+#       python manage.py migrate &&
+#       python manage.py runserver 0.0.0.0:8000
+#       "
+#     volumes:
+#       - .:/app
+#     ports:
+#       - "8000:8000"
+#     depends_on:
+#       - postgres
+
+# volumes:
+#   geotech_data:

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgis
+  template:
+    metadata:
+      labels:
+        app: postgis
+    spec:
+      containers:
+      - name: postgis
+        image: postgis/postgis:15-3.4
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "postgres"
+        - name: POSTGRES_DB
+          value: "db_geotech"
+        volumeMounts:
+        - name: postgis-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgis-storage
+        persistentVolumeClaim:
+          claimName: postgis-pvc

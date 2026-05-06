@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: geodjango
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/mercury-pixel/geotech.git
+    targetRevision: main
+    path: k8s/app
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

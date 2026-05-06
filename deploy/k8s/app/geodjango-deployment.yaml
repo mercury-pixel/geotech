@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: geodjango
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: geodjango
+  template:
+    metadata:
+      labels:
+        app: geodjango
+    spec:
+      initContainers:
+      - name: migrate
+        image: geotech-web
+        imagePullPolicy: Never
+        command: ["sh", "-c"]
+        args:
+          - |
+            echo "Waiting for PostGIS..."
+            until pg_isready -h postgis -p 5432; do
+              sleep 2
+            done
+            echo "PostGIS ready"
+            python manage.py migrate
+            python manage.py collectstatic --noinput
+        env:
+        - name: DB_HOST
+          value: postgis
+
+      containers:
+      - name: geodjango
+        image: geotech-web
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        command: ["sh", "-c"]
+        args:
+          - gunicorn geotech.wsgi:application --bind 0.0.0.0:8000
+        env:
+        - name: DB_HOST
+          value: postgis
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3 
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3 
