@@ -14,7 +14,7 @@ spec:
     spec:
       initContainers:
       - name: migrate
-        image: localhost:5000/geotech-web:latest
+        image: host.docker.internal:5000/geotech-web:latest
         imagePullPolicy: Always
         command: ["sh", "-c"]
         args:
@@ -32,7 +32,7 @@ spec:
 
       containers:
       - name: geodjango
-        image: localhost:5000/geotech-web:latest
+        image: host.docker.internal:5000/geotech-web:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
